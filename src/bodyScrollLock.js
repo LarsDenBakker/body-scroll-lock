@@ -117,19 +117,41 @@ const restoreOverflowSetting = () => {
 const isTargetElementTotallyScrolled = (targetElement: any): boolean =>
   targetElement ? targetElement.scrollHeight - targetElement.scrollTop <= targetElement.clientHeight : false;
 
-const handleScroll = (event: HandleScrollEvent, targetElement: any): boolean => {
-  const clientY = event.targetTouches[0].clientY - initialClientY;
-
-  if (allowTouchMove(event.target)) {
+function isScrollable(node: any) {
+  if (node.nodeType !== Node.ELEMENT_NODE) {
     return false;
   }
+  const computedStyles = window.getComputedStyle(node);
+  return computedStyles.overflow === 'auto' || computedStyles.overflow === 'scroll';
+}
 
-  if (targetElement && targetElement.scrollTop === 0 && clientY > 0) {
+function composedPath(el: any) {
+  const path = [];
+  while (el) {
+    if (el.tagName === 'HTML') {
+      path.push(document);
+    } else {
+      path.push(el);
+    }
+    el = el.parentElement;
+  }
+  return path;
+}
+
+function findScrollableElement(event: HandleScrollEvent) {
+  const path = event.composePath ? event.composePath() : composedPath(event.target);
+  return path.find(isScrollable);
+}
+
+const handleScroll = (event: HandleScrollEvent) => {
+  const clientY = event.targetTouches[0].clientY - initialClientY;
+  const scrollableElement = findScrollableElement(event);
+  if (scrollableElement && scrollableElement.scrollTop === 0 && clientY > 0) {
     // element is at the top of its scroll
     return preventDefault(event);
   }
 
-  if (isTargetElementTotallyScrolled(targetElement) && clientY < 0) {
+  if (isTargetElementTotallyScrolled(scrollableElement) && clientY < 0) {
     // element is at the top of its scroll
     return preventDefault(event);
   }
